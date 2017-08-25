@@ -1,9 +1,13 @@
 #include <ESP8266WiFi.h>
-#define STATE_LED 0
+#define STATE_PIN D0
+#define STATE_LED LED_BUILTIN
+#define _BSSID "BSSID"
+#define _PASSWORD "PASSWORD"
 
 uint8_t mac[6];
 uint8_t *bssid;
-String sendStr, _BSSID = "Akhil", _PASSWORD = "12345678";
+int rssi;
+String sendStr;
 
 void initialise()
 {
@@ -18,6 +22,7 @@ void initialise()
     digitalWrite(STATE_LED, HIGH);
     delay(468);
   }
+  digitalWrite(STATE_LED, LOW);
   WiFi.macAddress(mac);
 }
 
@@ -51,18 +56,31 @@ void networkDetails()  //diagnostic details mostly
   Serial.printf("macAddress: %02x:%02x:%02x:%02x:%02x:%02x",mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
 }
 
+boolean confirmConnection()
+{
+  while(!digitalRead(STATE_PIN))
+  {
+    digitalWrite(STATE_LED, LOW);
+    delay(32);
+    digitalWrite(STATE_LED, HIGH);
+    delay(968);
+  }
+  digitalWrite(STATE_LED, LOW);
+  return true;
+}
+
 void getRSSI()
 {
   if(WiFi.status() != WL_CONNECTED)
   {
     digitalWrite(STATE_LED, HIGH);
-    sendStr = "-inf";
+    sendStr = "#-inf~";
   }
   else
   {
   	digitalWrite(STATE_LED, LOW);
     rssi = WiFi.RSSI();
-    sendStr = String(rssi);
+    sendStr = "#" + String(rssi) + "~";
   }
 }
 
@@ -71,52 +89,15 @@ void setup()
 	Serial.begin(9600);
 	pinMode(STATE_LED, OUTPUT);
 	initialise();
-	networkDetails();
+	confirmConnection();
+	//networkDetails();
 }
 
 void loop()
 {
-	String recStr = "";
-	bool sf = false;
-	int set = 0;
-	getRSSI();
-	while(Serial.available())
-	{
-		char ch = Serial.read();
-		recStr += ch;
-	}
-	while(recStr.equals("set ssid") && set == 0)
-	{
-		while(Serial.available())
-		{
-			char ch = Serial.read();
-			recStr += ch;
-			set = 1;
-		}
-		if(set)
-		{
-			_BSSID = recStr;
-			recStr = "";
-		}
-	}
-	while(recStr.equals("set pwd") && set == 0)
-	{
-		while(Serial.available())
-		{
-			char ch = Serial.read();
-			recStr += ch;
-			set = 1;
-		}
-		if(set)
-		{
-			_PASSWORD = recStr;
-			recStr = "";
-		}
-	}
-	if(recStr.equals("init"))
-	{
-		initialise();
-	}
-	Serial.println(sendStr);
+  getRSSI();
+  //sendStr = "#" + String(WiFi.RSSI()) + "~";
+  if(confirmConnection())
+	  Serial.println(sendStr);
 	delay(250);
 }
